@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: 146fa6def72e69b4094b7a854b06d4cd
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 2100000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 336998
+  packageName: Simple Stylized Nature Shaders
+  packageVersion: 1.0
+  assetPath: Assets/Emilulz_Assets/StylizedShaders/SimpleStylizedShaders/SimpleStylizedWater/M_SimpleWaterStilized.mat
+  uploadId: 798734

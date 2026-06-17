@@ -1,0 +1,17 @@
+fileFormatVersion: 2
+guid: 8f33adff0b4350348a20545e3c822567
+ScriptedImporter:
+  internalIDToNameTable: []
+  externalObjects: {}
+  serializedVersion: 2
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+  script: {fileID: 11500000, guid: 625f186215c104763be7675aa2d941aa, type: 3}
+AssetOrigin:
+  serializedVersion: 1
+  productId: 336998
+  packageName: Simple Stylized Nature Shaders
+  packageVersion: 1.0
+  assetPath: Assets/Emilulz_Assets/StylizedShaders/SimpleStylizedShaders/SimpleStylized_Lava/Simple_Stylized_Lava.shadergraph
+  uploadId: 798734
