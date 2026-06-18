@@ -208,7 +208,7 @@ Animator:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 8701538884831955866}
-  m_Enabled: 1
+  m_Enabled: 0
   m_Avatar: {fileID: 0}
   m_Controller: {fileID: 9100000, guid: 8b64481d4b8454351a32727c7e4f0477, type: 2}
   m_CullingMode: 0
@@ -267,6 +267,12 @@ MonoBehaviour:
   interpolationSpeed: 15
   boostEffect: {fileID: 0}
   animator: {fileID: 0}
+  wheels:
+  - {fileID: 8274710278464284144}
+  - {fileID: 8649397924609416143}
+  - {fileID: 1188653660463604515}
+  - {fileID: 7384323717462689909}
+  wheelRotationSpeed: 360
 --- !u!65 &6504505707553310973
 BoxCollider:
   m_ObjectHideFlags: 0

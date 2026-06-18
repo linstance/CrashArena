@@ -6,7 +6,7 @@ public class GameManager : MonoBehaviour
 
     private void Awake()
     {
-        // 싱글톤 패턴 적용
+        
         if (Instance == null)
         {
             Instance = this;
@@ -18,7 +18,7 @@ public class GameManager : MonoBehaviour
             return;
         }
 
-        // C++ 서버 틱(60Hz)과 클라이언트 화면 프레임을 60FPS로 완벽히 동기화
+        
         QualitySettings.vSyncCount = 0; 
         Application.targetFrameRate = 60;
         

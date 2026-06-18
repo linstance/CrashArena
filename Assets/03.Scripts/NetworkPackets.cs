@@ -14,9 +14,9 @@ public class NetworkPackets
         public float inputX;
         public float inputY;
 
-        [MarshalAs(UnmanagedType.U1)] // 1바이트 bool
+        [MarshalAs(UnmanagedType.U1)] // 1바이트
         public bool isDriving;
-        [MarshalAs(UnmanagedType.U1)] // 1바이트 bool
+        [MarshalAs(UnmanagedType.U1)] // 1바이트
         public bool isBoosting;
     }
     
@@ -32,9 +32,9 @@ public class NetworkPackets
         public float rotY;
         public float velX, velZ;
         
-        [MarshalAs(UnmanagedType.U1)] // 1바이트 bool
+        [MarshalAs(UnmanagedType.U1)] // 1바이트
         public bool isBoosting;
-        [MarshalAs(UnmanagedType.U1)] // 1바이트 bool
+        [MarshalAs(UnmanagedType.U1)] // 1바이트
         public bool isAlive;
     }
 }

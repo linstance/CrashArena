@@ -1,4 +1,3 @@
-// 파일명: NetworkManager.cs
 using System;
 using System.Collections.Concurrent;
 using System.Net;
@@ -11,48 +10,44 @@ public class NetworkManager : MonoBehaviour
 {
     public static NetworkManager Instance { get; private set; }
 
-    [Header("테스트 설정")]
-    public bool useMockServer = true; 
+    
+    public bool useMockServer = true;
 
-    [Header("가상 서버 물리 설정 (기본 주행)")]
-    public float baseSpeed = 30f;   
-    public float drag = 5f;         
+   
+    public float baseSpeed = 50f;
+    public float drag = 4f;
 
-    [Header("가상 서버 물리 설정 (순간 돌진)")]
-    public float dashImpulseForce = 45f;
-    public float dashDuration = 0.2f;    
-    public float dashCooldown = 1.5f;    
+    
+    public float dashImpulseForce = 30f;
+    public float dashDuration = 0.2f;
+    public float dashCooldown = 1.5f;
 
-    [Header("게임 오버 (십자형 맵 경계) 설정")]
-    [Tooltip("중앙 광장의 대략적인 반지름")]
-    public float centerRadius = 19f;  
-    [Tooltip("다리의 Z축(가로) 또는 X축(세로) 절반 폭")]
-    public float bridgeWidth = 5f;    
-    [Tooltip("다리 끝쪽 스폰 지점까지의 최대 길이")]
+    
+    public float centerRadius = 19f;
+    public float bridgeWidth = 5f;
     public float bridgeLength = 40f;
 
-    [Header("서버 연결 정보")]
+    
     public string serverIP = "127.0.0.1";
     public int tcpPort = 7777;
     public int udpPort = 7778;
 
-    [Header("플레이어 및 프리팹 관리")]
+    
     public int myPlayerId = -1;
-    public GameObject[] playerPrefabs = new GameObject[4]; 
+    public GameObject[] playerPrefabs = new GameObject[4];
     public BumperCarController[] playerControllers = new BumperCarController[4];
-
-    [Header("스폰 위치 관리")]
-    public Transform[] spawnPoints = new Transform[4]; 
+    public Transform[] spawnPoints = new Transform[4];
 
     private UdpClient udpClient;
     private Thread receiveThread;
     private bool isRunning = false;
 
+    // 가상 서버용 데이터
     private Vector3[] mockPositions = new Vector3[4];
     private Vector3[] mockVelocities = new Vector3[4];
-    private float[] dashTimers = new float[4];     
-    private float[] dashCooldowns = new float[4];  
-    private Vector3[] dashDirections = new Vector3[4]; 
+    private float[] dashTimers = new float[4];
+    private float[] dashCooldowns = new float[4];
+    private Vector3[] dashDirections = new Vector3[4];
 
     private ConcurrentQueue<NetworkPackets.StatePacket> stateQueue = new ConcurrentQueue<NetworkPackets.StatePacket>();
 
@@ -64,19 +59,12 @@ public class NetworkManager : MonoBehaviour
 
     private void Start()
     {
-        for (int i = 0; i < 4; i++)
-        {
-            mockPositions[i] = GetInitialSpawnPosition(i);
-            mockVelocities[i] = Vector3.zero;
-            dashTimers[i] = 0f;
-            dashCooldowns[i] = 0f;
-            dashDirections[i] = Vector3.forward;
-        }
+        InitializeMockData();
 
         if (useMockServer)
         {
-            Debug.LogWarning("⚠️ 가상 서버 모드(Mock Mode)로 실행합니다.");
-            if (myPlayerId == -1) myPlayerId = 0; 
+            Debug.LogWarning("가상 서버 모드로 실행합니다.");
+            if (myPlayerId == -1) myPlayerId = 0;
             SpawnPlayers();
             if (playerControllers[myPlayerId] != null) playerControllers[myPlayerId].gameObject.SetActive(true);
         }
@@ -86,58 +74,64 @@ public class NetworkManager : MonoBehaviour
         }
     }
 
+    private void InitializeMockData()
+    {
+        for (int i = 0; i < 4; i++)
+        {
+            mockPositions[i] = GetInitialSpawnPosition(i);
+            mockVelocities[i] = Vector3.zero;
+            dashTimers[i] = 0f;
+            dashCooldowns[i] = 0f;
+            dashDirections[i] = Vector3.forward;
+        }
+    }
+
     private void ConnectToServer()
     {
         try
         {
-            // 1. TCP 서버 접속
+            // TCP 매치메이킹 및 ID 할당
             TcpClient tcpClient = new TcpClient();
             tcpClient.Connect(serverIP, tcpPort);
             NetworkStream stream = tcpClient.GetStream();
-            
+
             byte[] idBuffer = new byte[4];
             stream.Read(idBuffer, 0, idBuffer.Length);
             myPlayerId = BitConverter.ToInt32(idBuffer, 0);
             tcpClient.Close();
-            
-            Debug.Log($"[네트워크] 서버 접속 성공! 할당된 ID: {myPlayerId}");
+
+            Debug.Log($"[Network] 서버 접속 성공 할당된 ID: {myPlayerId}");
 
             if (myPlayerId == -1) return;
-            
-            // 2. 플레이어 생성
+
             SpawnPlayers();
 
-            // 3. UDP 통신 설정 (이 로직은 try 블록 안에 있어야 안전합니다)
+            // UDP 통신 시작
             udpClient = new UdpClient();
             udpClient.Connect(serverIP, udpPort);
             isRunning = true;
 
-            // 4. 수신 쓰레드 시작
-            receiveThread = new Thread(ReceiveUdpData);
-            receiveThread.IsBackground = true;
+            receiveThread = new Thread(ReceiveUdpData) { IsBackground = true };
             receiveThread.Start();
 
-            // 5. 서버에 나 여기 있다고 알리는 첫 패킷 전송
-            NetworkPackets.InputPacket hello = new NetworkPackets.InputPacket 
-            { 
-                playerId = myPlayerId, 
-                playerName = "NewPlayer" // 이름은 나중에 원하는 대로 수정하세요
+            // 서버 등록용 초기 패킷 전송
+            NetworkPackets.InputPacket hello = new NetworkPackets.InputPacket
+            {
+                playerId = myPlayerId,
+                playerName = "Player"
             };
             SendInputPacket(hello);
-            Debug.Log("서버에 UDP 등록용 Hello 패킷 전송 완료!");
         }
-        catch (Exception e) 
-        { 
-            Debug.LogError($"[네트워크 에러] 접속 실패: {e.Message}");
+        catch (Exception e)
+        {
+            Debug.LogError($"[Network] 서버 접속 실패: {e.Message}");
         }
     }
-    
+
     private Vector3 GetInitialSpawnPosition(int id)
     {
         if (spawnPoints != null && id < spawnPoints.Length && spawnPoints[id] != null) return spawnPoints[id].position;
-        float x = (id == 0) ? -10.0f : (id == 1) ? 10.0f : 0.0f;
-        float z = (id == 2) ? -10.0f : (id == 3) ? 10.0f : 0.0f;
-        return new Vector3(x, 0.5f, z); 
+        return new Vector3(id == 0 ? -10f : (id == 1 ? 10f : 0f), 5.2f, id == 2 ? -10f : (id == 3 ? 10f : 0f));
     }
 
     private Quaternion GetInitialSpawnRotation(int id)
@@ -152,20 +146,18 @@ public class NetworkManager : MonoBehaviour
         {
             if (playerPrefabs[i] != null)
             {
-                Vector3 spawnPos = GetInitialSpawnPosition(i);
-                Quaternion spawnRot = GetInitialSpawnRotation(i);
-                GameObject obj = Instantiate(playerPrefabs[i], spawnPos, spawnRot);
+                GameObject obj = Instantiate(playerPrefabs[i], GetInitialSpawnPosition(i), GetInitialSpawnRotation(i));
                 playerControllers[i] = obj.GetComponent<BumperCarController>();
                 playerControllers[i].playerId = i;
                 playerControllers[i].isLocalPlayer = (i == myPlayerId);
-                obj.SetActive(false); 
+                obj.SetActive(false);
             }
         }
     }
 
     private void Update()
     {
-        // ★ 핵심: 가상 서버일 때 부스터 타이머와 쿨타임을 깎아주는 로직 (이게 빠져있었습니다!)
+        // 가상 서버 타이머 업데이트
         if (useMockServer)
         {
             for (int i = 0; i < 4; i++)
@@ -175,32 +167,16 @@ public class NetworkManager : MonoBehaviour
             }
         }
 
+        // 수신된 패킷 처리 큐
         while (stateQueue.TryDequeue(out NetworkPackets.StatePacket packet))
         {
-            // 1. 들어온 패킷 정보 출력
-            // Debug.Log($"[Update] 패킷 수신됨! ID: {packet.playerId}, Alive: {packet.isAlive}, AliveState: {packet.isAlive}");
+            if (packet.playerId < 0 || packet.playerId >= 4 || playerControllers[packet.playerId] == null) continue;
 
-            // 2. 인덱스 체크
-            if (packet.playerId < 0 || packet.playerId >= 4)
-            {
-                Debug.LogError($"[Update] 잘못된 ID 수신: {packet.playerId}");
-                continue;
-            }
-
-            // 3. 컨트롤러 존재 여부 체크
-            if (playerControllers[packet.playerId] == null)
-            {
-                Debug.LogError($"[Update] {packet.playerId}번 플레이어 컨트롤러가 NULL입니다! (SpawnPlayers 확인 필요)");
-                continue;
-            }
-
-            // 4. 활성화 로직
             if (!playerControllers[packet.playerId].gameObject.activeSelf)
             {
                 playerControllers[packet.playerId].gameObject.SetActive(true);
-                Debug.Log($"[Update] {packet.playerId}번 자동차 활성화 완료!");
             }
-            
+
             playerControllers[packet.playerId].OnReceiveState(packet);
         }
     }
@@ -213,14 +189,22 @@ public class NetworkManager : MonoBehaviour
             return;
         }
 
-        if (!isRunning) return;
+        if (!isRunning || udpClient == null) return;
+
         int size = Marshal.SizeOf(packet);
         byte[] buffer = new byte[size];
         IntPtr ptr = Marshal.AllocHGlobal(size);
-        Marshal.StructureToPtr(packet, ptr, true);
-        Marshal.Copy(ptr, buffer, 0, size);
-        Marshal.FreeHGlobal(ptr);
-        udpClient.Send(buffer, buffer.Length);
+
+        try
+        {
+            Marshal.StructureToPtr(packet, ptr, true);
+            Marshal.Copy(ptr, buffer, 0, size);
+            udpClient.Send(buffer, buffer.Length);
+        }
+        finally
+        {
+            Marshal.FreeHGlobal(ptr);
+        }
     }
 
     private void SimulateServerLogic(NetworkPackets.InputPacket input)
@@ -230,29 +214,20 @@ public class NetworkManager : MonoBehaviour
 
         float dt = Time.deltaTime;
 
+        // 대시 처리
         if (input.isBoosting && dashCooldowns[id] <= 0f && dashTimers[id] <= 0f)
         {
-            dashTimers[id] = dashDuration;   
-            dashCooldowns[id] = dashCooldown; 
+            dashTimers[id] = dashDuration;
+            dashCooldowns[id] = dashCooldown;
 
             Vector3 inputDir = new Vector3(input.inputX, 0f, input.inputY).normalized;
-            
-            if (inputDir.magnitude < 0.1f)
-            {
-                if (playerControllers[id] != null)
-                    dashDirections[id] = playerControllers[id].transform.forward;
-                else
-                    dashDirections[id] = Vector3.forward;
-            }
-            else
-            {
-                dashDirections[id] = inputDir;
-            }
+            dashDirections[id] = inputDir.magnitude < 0.1f ? (playerControllers[id] != null ? playerControllers[id].transform.forward : Vector3.forward) : inputDir;
 
             mockVelocities[id].x += dashDirections[id].x * dashImpulseForce;
             mockVelocities[id].z += dashDirections[id].z * dashImpulseForce;
         }
 
+        // 이동 속도 적용
         if (dashTimers[id] > 0f)
         {
             mockVelocities[id].x += dashDirections[id].x * dashImpulseForce * 2f * dt;
@@ -261,9 +236,10 @@ public class NetworkManager : MonoBehaviour
         else if (input.isDriving)
         {
             mockVelocities[id].x += input.inputX * baseSpeed * dt;
-            mockVelocities[id].z += input.inputY * baseSpeed * dt; 
+            mockVelocities[id].z += input.inputY * baseSpeed * dt;
         }
 
+        // 마찰력 및 위치 업데이트
         mockVelocities[id].x -= mockVelocities[id].x * drag * dt;
         mockVelocities[id].z -= mockVelocities[id].z * drag * dt;
 
@@ -276,25 +252,15 @@ public class NetworkManager : MonoBehaviour
             rotY = Mathf.Atan2(mockVelocities[id].x, mockVelocities[id].z) * Mathf.Rad2Deg;
         }
 
-        // 십자형 안전 구역 판정 알고리즘
+        // 안전 구역 판정
         float absX = Mathf.Abs(mockPositions[id].x);
         float absZ = Mathf.Abs(mockPositions[id].z);
-        bool currentAlive = false;
+        bool currentAlive = (new Vector2(absX, absZ).magnitude <= centerRadius) ||
+                            (absZ <= bridgeWidth && absX <= bridgeLength) ||
+                            (absX <= bridgeWidth && absZ <= bridgeLength);
 
-        if (new Vector2(absX, absZ).magnitude <= centerRadius) 
-        {
-            currentAlive = true;
-        }
-        else if (absZ <= bridgeWidth && absX <= bridgeLength) 
-        {
-            currentAlive = true;
-        }
-        else if (absX <= bridgeWidth && absZ <= bridgeLength) 
-        {
-            currentAlive = true;
-        }
-
-        NetworkPackets.StatePacket mockState = new NetworkPackets.StatePacket
+        // 큐에 추가
+        stateQueue.Enqueue(new NetworkPackets.StatePacket
         {
             playerId = id,
             playerName = input.playerName,
@@ -304,27 +270,20 @@ public class NetworkManager : MonoBehaviour
             rotY = rotY,
             velX = mockVelocities[id].x,
             velZ = mockVelocities[id].z,
-            isBoosting = (dashTimers[id] > 0f), 
-            isAlive = currentAlive 
-        };
-
-        stateQueue.Enqueue(mockState);
+            isBoosting = (dashTimers[id] > 0f),
+            isAlive = currentAlive
+        });
     }
 
     private void ReceiveUdpData()
     {
         IPEndPoint anyIP = new IPEndPoint(IPAddress.Any, 0);
-        Debug.Log("[네트워크] UDP 수신 쓰레드 시작됨");
-        
+
         while (isRunning)
         {
             try
             {
-                // 패킷 수신
                 byte[] data = udpClient.Receive(ref anyIP);
-                
-                // ★ [중요] 데이터가 실제로 들어오는지 확인하는 로그
-                Debug.Log($"[네트워크] 패킷 수신! 크기: {data.Length} bytes");
 
                 if (data.Length == Marshal.SizeOf(typeof(NetworkPackets.StatePacket)))
                 {
@@ -332,18 +291,18 @@ public class NetworkManager : MonoBehaviour
                     Marshal.Copy(data, 0, ptr, data.Length);
                     NetworkPackets.StatePacket packet = (NetworkPackets.StatePacket)Marshal.PtrToStructure(ptr, typeof(NetworkPackets.StatePacket));
                     Marshal.FreeHGlobal(ptr);
-                    
+
                     stateQueue.Enqueue(packet);
-                    Debug.Log($"[네트워크] 패킷 큐에 추가됨 (ID: {packet.playerId})");
-                }
-                else
-                {
-                    Debug.LogWarning($"[네트워크] 패킷 크기 불일치! 수신: {data.Length}, 기대: {Marshal.SizeOf(typeof(NetworkPackets.StatePacket))}");
                 }
             }
-            catch (Exception e) 
-            { 
-                Debug.LogError($"[UDP 에러] {e.Message}"); 
+            catch (SocketException)
+            {
+                // 소켓이 정상적으로 닫힐 때 발생하는 예외 무시
+                if (isRunning) Debug.LogError("[Network] UDP 수신 소켓 에러 발생");
+            }
+            catch (Exception e)
+            {
+                if (isRunning) Debug.LogError($"[Network] UDP 수신 스레드 에러: {e.Message}");
             }
         }
     }
@@ -351,7 +310,9 @@ public class NetworkManager : MonoBehaviour
     private void OnApplicationQuit()
     {
         isRunning = false;
-        if (udpClient != null) udpClient.Close();
-        if (receiveThread != null) receiveThread.Abort();
+        if (udpClient != null)
+        {
+            udpClient.Close();
+        }
     }
 }
